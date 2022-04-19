@@ -324,10 +324,21 @@ void OBS_content::OBS_content_destroyDisplay(
 
 	if (windowMessage != NULL && windowMessage->joinable())
 		windowMessage->join();
-    
-    delete found->second;
-    displays.erase(found);
 
+	blog(LOG_DEBUG, "Destorying display");
+	obs_display_set_enabled(found -> second -> m_display, false);
+	obs_display_destroy(found->second->m_display);
+
+	char str[30];
+	sprintf(str, "Erasing curr: %d", displays.size());
+	blog(LOG_DEBUG, str);
+	displays.erase(args[0].value_str);
+
+	char str_two[30];
+	sprintf(str_two, "done erasing now: %d", displays.size());
+	blog(LOG_DEBUG, str_two);
+
+	blog(LOG_DEBUG, "Done");
 	rval.push_back(ipc::value((uint64_t)ErrorCode::Ok));
 	AUTO_DEBUG;
 }
