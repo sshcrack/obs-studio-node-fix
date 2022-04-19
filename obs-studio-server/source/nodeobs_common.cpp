@@ -325,9 +325,24 @@ void OBS_content::OBS_content_destroyDisplay(
 	if (windowMessage != NULL && windowMessage->joinable())
 		windowMessage->join();
 
+	auto display = found -> second;
+
+	blog(LOG_DEBUG, "Resizing display to 0");
+    display ->m_gsInitData.cx = 0;
+	display ->m_gsInitData.cy = 0;
+
+	// Resize Display
+    obs_display_resize(display ->m_display,
+		display ->m_gsInitData.cx,
+		display ->m_gsInitData.cy);
+
+	blog(LOG_DEBUG, "Updating preview area");
+	display -> UpdatePreviewArea();
+	display->SetSize(display->m_gsInitData.cx, display->m_gsInitData.cy);
+
 	blog(LOG_DEBUG, "Destorying display");
-	obs_display_set_enabled(found -> second -> m_display, false);
-	obs_display_destroy(found->second->m_display);
+	obs_display_set_enabled(display -> m_display, false);
+	obs_display_destroy(display->m_display);
 
 	char str[30];
 	sprintf(str, "Erasing curr: %d", displays.size());
