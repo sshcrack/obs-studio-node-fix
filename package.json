@@ -1,6 +1,6 @@
 {
   "name": "@streamlabs/obs-studio-node",
-  "version": "0.3.99",
+  "version": "0.3.101",
   "description": "Experimental bindings to obs-studio using nan directly",
   "author": "Streamlabs <support@streamlabs.com>",
   "license": "GPL-2.0",
@@ -18,9 +18,10 @@
     "build:bindings": "cmake-js configure -a x64 --CDCMAKE_PREFIX_INSTALL=distribute && cmake --build build --target install --config Release",
     "build:javascript": "tsc -p js",
     "build:docs": "typedoc --out docs",
-    "local:config": "yarn install && git submodule update --init --recursive --force && cmake -Bbuild -H. -G\"Visual Studio 16 2019\" -A\"x64\" -DCMAKE_INSTALL_PREFIX=\"./obs-studio-node\" -DLIBOBS_BUILD_TYPE=\"debug\"",
-    "local:build": "cmake --build build --target install --config Debug",
-    "local:clean": "rm -rf build/*",
+    "local:config": "yarn install && git submodule update --init --recursive --force && cmake -Bbuild -H. -A\"x64\" -DCMAKE_INSTALL_PREFIX=\"./obs-studio-node\" -DLIBOBS_BUILD_TYPE=\"release\"",
+    "local:build": "cmake --build build --target install --config Release",
+    "local:clean": "rimraf build && mkdir build",
+    "local:package": "cd obs-studio-node && tar -czvf ../archive5.tar.gz .",
     "test": "electron-mocha -t 80000 -c true -r ts-node/register tests/osn-tests/src/**/*.ts --reporter tests/osn-tests/util/list-reporter.js"
   },
   "devDependencies": {
@@ -37,6 +38,7 @@
     "mocha-junit-reporter": "^1.22.0",
     "node-addon-api": "^4.1.0",
     "request": "^2.88.0",
+    "rimraf": "^3.0.2",
     "ts-node": "^7.0.1",
     "typedoc": "^0.16.11",
     "typedoc-default-themes": "^0.5.0",

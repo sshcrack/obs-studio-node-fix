@@ -22,3 +22,7 @@ docs/
 /streamlabs-build
 
 tests/osn-tests/*-cache-local.zip
+obs-studio
+obs-studio-node
+archive*.tar.gz
+obs-build-dependencies

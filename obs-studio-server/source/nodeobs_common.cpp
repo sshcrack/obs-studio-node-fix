@@ -541,6 +541,7 @@ void OBS_content::OBS_content_setBackgroundColor(
 
 	it->second->SetBackgroundColor(color.c[0], color.c[1], color.c[2], color.c[3]);
 	rval.push_back(ipc::value((uint64_t)ErrorCode::Ok));
+	rval.push_back(ipc::value("Background color! " + std::to_string(color.c[0]) + "," + std::to_string(color.c[1]) + "," + std::to_string(color.c[2]) + "," + std::to_string(color.c[3]) + "," + std::to_string(args[4].value_union.ui32)));
 	AUTO_DEBUG;
 	return;
 }

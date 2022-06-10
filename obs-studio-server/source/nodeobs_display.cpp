@@ -31,7 +31,7 @@ std::vector<std::pair<std::string, std::pair<uint32_t, uint32_t>>> sourcesSize;
 extern std::string currentScene; /* defined in OBS_content.cpp */
 
 static const uint32_t grayPaddingArea = 10ul;
-std::mutex OBS::Display::m_displayMtx;
+std::mutex            OBS::Display::m_displayMtx;
 
 static void RecalculateApectRatioConstrainedSize(
     uint32_t  origW,
@@ -208,7 +208,7 @@ void OBS::Display::SystemWorker()
 				auto error = GetLastError();
 
 				// We check for error 1400 because if this display is a projector, it is attached to a HTML DOM, so
-				// we cannot directly control its destruction since the HTML will probably do this concurrently, 
+				// we cannot directly control its destruction since the HTML will probably do this concurrently,
 				// the DestroyWindow is allows to fail on this case, a better solution here woul be checking if this
 				// display is really a projector and do not attempt to destroy it (let the HTML do it for us).
 				if (error != 1400) {
@@ -358,7 +358,7 @@ OBS::Display::Display(uint64_t windowHandle, enum obs_video_rendering_mode mode)
 #endif
 	m_displayMtx.lock();
 	m_display = obs_display_create(&m_gsInitData, 0x0);
-	
+
 	if (!m_display) {
 		blog(LOG_INFO, "Failed to create the display");
 		throw std::runtime_error("unable to create display");
@@ -442,14 +442,19 @@ void OBS::Display::SetPosition(uint32_t x, uint32_t y)
 	m_position.second = y;
 
 	if (m_source != NULL) {
-       std::string msg = "<" + std::string(__FUNCTION__) + "> Adjusting display position for source %s to %ldx%ld. hwnd %d";
-		blog(
-		    LOG_DEBUG,
-		    msg.c_str(),
-		    obs_source_get_name(m_source), x, y, m_ourWindow);
+		std::string msg =
+		    "<" + std::string(__FUNCTION__) + "> Adjusting display position for source %s to %ldx%ld. hwnd %d";
+		blog(LOG_DEBUG, msg.c_str(), obs_source_get_name(m_source), x, y, m_ourWindow);
 	}
 
-	SetWindowPos( m_ourWindow, NULL, m_position.first, m_position.second, m_gsInitData.cx, m_gsInitData.cy, SWP_NOCOPYBITS | SWP_NOSIZE | SWP_NOACTIVATE);
+	SetWindowPos(
+	    m_ourWindow,
+	    NULL,
+	    m_position.first,
+	    m_position.second,
+	    m_gsInitData.cx,
+	    m_gsInitData.cy,
+	    SWP_NOCOPYBITS | SWP_NOSIZE | SWP_NOACTIVATE);
 #endif
 }
 
@@ -461,102 +466,105 @@ std::pair<uint32_t, uint32_t> OBS::Display::GetPosition()
 bool isNewerThanWindows7()
 {
 #ifdef WIN32
-	static bool versionIsHigherThan7 = false; 
-	static bool versionIsChecked = false; 
-	if( !versionIsChecked )
-	{
+	static bool versionIsHigherThan7 = false;
+	static bool versionIsChecked     = false;
+	if (!versionIsChecked) {
 		OSVERSIONINFO osvi;
-		BOOL bIsWindowsXPorLater;
+		BOOL          bIsWindowsXPorLater;
 
 		ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
 		osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
 
 		GetVersionEx(&osvi);
 
-		versionIsHigherThan7 = 
-		( (osvi.dwMajorVersion > 6 ) ||
-		( (osvi.dwMajorVersion == 6) && 
-		(osvi.dwMinorVersion > 1) ));
+		versionIsHigherThan7 = ((osvi.dwMajorVersion > 6) || ((osvi.dwMajorVersion == 6) && (osvi.dwMinorVersion > 1)));
 
 		versionIsChecked = true;
 	}
 	return versionIsHigherThan7;
 #else
-    return false;
+	return false;
 #endif
 }
 
 void OBS::Display::setSizeCall(int step)
 {
-	int use_x, use_y;
-	int use_width, use_height;
-	const float presizes[] = {1 ,1.05, 1.25, 1.5, 2.0 , 3.0};
+	int         use_x, use_y;
+	int         use_width, use_height;
+	const float presizes[] = {1, 1.05, 1.25, 1.5, 2.0, 3.0};
 
-	switch( step ) 
-	{
+	switch (step) {
 	case -1:
-		use_width = m_gsInitData.cx;
+		use_width  = m_gsInitData.cx;
 		use_height = m_gsInitData.cy;
-		use_x = m_position.first;
-		use_y = m_position.second;
+		use_x      = m_position.first;
+		use_y      = m_position.second;
 		break;
 	case 0:
-		use_width = m_gsInitData.cx-2;
-		use_height = m_gsInitData.cy-2;
-		use_x = m_position.first + 1;
-		use_y = m_position.second + 1;
+		use_width  = m_gsInitData.cx - 2;
+		use_height = m_gsInitData.cy - 2;
+		use_x      = m_position.first + 1;
+		use_y      = m_position.second + 1;
 		break;
 	case 1:
 	case 2:
 	case 3:
 	case 4:
 	case 5:
-		use_width = float(m_gsInitData.cx)/presizes[step];
-		use_height = float(m_gsInitData.cy)/presizes[step];
-		use_x = m_position.first + (m_gsInitData.cx-use_width)/2;
-		use_y = m_position.second + (m_gsInitData.cy-use_height)/2;
+		use_width  = float(m_gsInitData.cx) / presizes[step];
+		use_height = float(m_gsInitData.cy) / presizes[step];
+		use_x      = m_position.first + (m_gsInitData.cx - use_width) / 2;
+		use_y      = m_position.second + (m_gsInitData.cy - use_height) / 2;
 		break;
 	}
-	
+
 	BOOL ret = true;
 	// Resize Window
 #if defined(_WIN32)
-	if(step > 0)
-	{
-		ret = SetWindowPos( m_ourWindow, NULL, use_x, use_y, use_width, use_height, SWP_NOCOPYBITS | SWP_NOACTIVATE | SWP_NOZORDER | SWP_HIDEWINDOW);
+	if (step > 0) {
+		ret = SetWindowPos(
+		    m_ourWindow,
+		    NULL,
+		    use_x,
+		    use_y,
+		    use_width,
+		    use_height,
+		    SWP_NOCOPYBITS | SWP_NOACTIVATE | SWP_NOZORDER | SWP_HIDEWINDOW);
 	} else {
-		ret = SetWindowPos( m_ourWindow, NULL, use_x, use_y, use_width, use_height, SWP_NOCOPYBITS | SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW);
-		if(ret)
-			RedrawWindow( m_ourWindow, NULL, NULL, RDW_ERASE | RDW_INVALIDATE);
+		ret = SetWindowPos(
+		    m_ourWindow,
+		    NULL,
+		    use_x,
+		    use_y,
+		    use_width,
+		    use_height,
+		    SWP_NOCOPYBITS | SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW);
+		if (ret)
+			RedrawWindow(m_ourWindow, NULL, NULL, RDW_ERASE | RDW_INVALIDATE);
 	}
 #elif defined(__APPLE__)
 #elif defined(__linux__) || defined(__FreeBSD__)
 #endif
 
-	if(step >= 0 && ret)
-	{
+	if (step >= 0 && ret) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		std::thread{&OBS::Display::setSizeCall, this, step -1 }.detach();
+		std::thread{&OBS::Display::setSizeCall, this, step - 1}.detach();
 	}
 };
-
 
 void OBS::Display::SetSize(uint32_t width, uint32_t height)
 {
 #ifdef WIN32
 	if (m_source != NULL) {
-       std::string msg = "<" + std::string(__FUNCTION__) + "> Adjusting display size for source %s to %ldx%ld. hwnd %d";
-		blog(
-			LOG_DEBUG,
-			msg.c_str(),
-			obs_source_get_name(m_source), width, height, m_ourWindow);
+		std::string msg =
+		    "<" + std::string(__FUNCTION__) + "> Adjusting display size for source %s to %ldx%ld. hwnd %d";
+		blog(LOG_DEBUG, msg.c_str(), obs_source_get_name(m_source), width, height, m_ourWindow);
 	}
 
 	m_gsInitData.cx = width;
 	m_gsInitData.cy = height;
 
-	if(width == 0 || height == 0 || isNewerThanWindows7())
-	{
+	if (width == 0 || height == 0 || isNewerThanWindows7()) {
 		setSizeCall(-1);
 	} else {
 		setSizeCall(4);
@@ -759,9 +767,7 @@ inline void DrawBoxAt(OBS::Display* dp, float_t x, float_t y, matrix4& mtx)
 	gs_matrix_translate(&pos);
 	gs_matrix_translate(&offset);
 	gs_matrix_scale3f(
-	    HANDLE_DIAMETER * dp->m_previewToWorldScale.x,
-		HANDLE_DIAMETER * dp->m_previewToWorldScale.y,
-		1.0f);
+	    HANDLE_DIAMETER * dp->m_previewToWorldScale.x, HANDLE_DIAMETER * dp->m_previewToWorldScale.y, 1.0f);
 
 	gs_draw(GS_LINESTRIP, 0, 0);
 	gs_matrix_pop();
@@ -781,9 +787,7 @@ inline void DrawSquareAt(OBS::Display* dp, float_t x, float_t y, matrix4& mtx)
 	gs_matrix_translate(&pos);
 	gs_matrix_translate(&offset);
 	gs_matrix_scale3f(
-	    HANDLE_DIAMETER * dp->m_previewToWorldScale.x,
-		HANDLE_DIAMETER * dp->m_previewToWorldScale.y,
-		1.0f);
+	    HANDLE_DIAMETER * dp->m_previewToWorldScale.x, HANDLE_DIAMETER * dp->m_previewToWorldScale.y, 1.0f);
 
 	gs_draw(GS_TRISTRIP, 0, 0);
 	gs_matrix_pop();
@@ -1107,10 +1111,7 @@ void OBS::Display::DisplayCallback(void* displayPtr, uint32_t cx, uint32_t cy)
 	gs_ortho(0.0f, float(sourceW), 0.0f, float(sourceH), -100.0f, 100.0f);
 
 	gs_set_viewport(
-		dp->m_previewOffset.first,
-		dp->m_previewOffset.second,
-		dp->m_previewSize.first,
-		dp->m_previewSize.second);
+	    dp->m_previewOffset.first, dp->m_previewOffset.second, dp->m_previewSize.first, dp->m_previewSize.second);
 
 	// Padding
 	vec4_set(&color, dp->m_paddingColor[0], dp->m_paddingColor[1], dp->m_paddingColor[2], dp->m_paddingColor[3]);
@@ -1149,9 +1150,8 @@ void OBS::Display::DisplayCallback(void* displayPtr, uint32_t cx, uint32_t cy)
 		 * is for Studio Mode and that the scene it contains is a 
 		 * duplicate of the current scene, apply selective recording
 		 * layer rendering if it is enabled */
-		if (obs_get_multiple_rendering() &&
-			obs_source_get_type(dp->m_source) == OBS_SOURCE_TYPE_TRANSITION)
-				obs_set_video_rendering_mode(dp->m_renderingMode);
+		if (obs_get_multiple_rendering() && obs_source_get_type(dp->m_source) == OBS_SOURCE_TYPE_TRANSITION)
+			obs_set_video_rendering_mode(dp->m_renderingMode);
 
 		obs_source_video_render(dp->m_source);
 		/* If we want to draw guidelines, we need a scene,
@@ -1175,7 +1175,7 @@ void OBS::Display::DisplayCallback(void* displayPtr, uint32_t cx, uint32_t cy)
 			obs_render_recording_texture();
 			break;
 		}
-		
+
 		/* Here we assume that channel 0 holds the primary transition.
 		* We also assume that the active source within that transition is
 		* the scene that we need */
@@ -1258,7 +1258,6 @@ void OBS::Display::UpdatePreviewArea()
 	    m_previewSize.first,
 	    m_previewSize.second);
 
-
 	offsetX = m_paddingSize;
 	offsetY = float_t(offsetX) * float_t(sourceH) / float_t(sourceW);
 
@@ -1267,7 +1266,7 @@ void OBS::Display::UpdatePreviewArea()
 
 	if (m_previewSize.second <= offsetY * 2) {
 		m_previewOffset.second = (m_previewOffset.second - 1) / 2;
-		m_previewSize.second = 1;
+		m_previewSize.second   = 1;
 	} else {
 		m_previewOffset.second += offsetY;
 		m_previewSize.second -= offsetY * 2;
