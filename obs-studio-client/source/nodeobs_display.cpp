@@ -270,9 +270,9 @@ Napi::Value display::OBS_content_setBackgroundColor(const Napi::CallbackInfo& in
 	obj.Set("g", Napi::Number::New(info.Env(), g));
 	obj.Set("b", Napi::Number::New(info.Env(), b));
 	obj.Set("a", Napi::Number::New(info.Env(), a));
-	obj.set("info", Napi::String::New(info.Env(), response[1].value_str))
+	obj.set("info", Napi::String::New(info.Env(), response[1].value_str));
 
-	return obj
+	return obj;
 }
 
 Napi::Value display::OBS_content_setShouldDrawUI(const Napi::CallbackInfo& info)
