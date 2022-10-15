@@ -100,6 +100,22 @@ Napi::Value service::OBS_service_startStreaming(const Napi::CallbackInfo& info)
 	return info.Env().Undefined();
 }
 
+
+Napi::Value service::OBS_service_isRecording(const Napi::CallbackInfo& info)
+{
+	if (!isWorkerRunning) {
+		start_worker(info.Env(), cb.Value());
+		isWorkerRunning = true;
+	}
+
+	auto conn = GetConnection(info);
+	if (!conn)
+		return info.Env().Undefined();
+	std::vector<ipc::value> response = conn->call_synchronous_helper("NodeOBS_Service", "OBS_service_isRecording", {});
+	bool res_bool = response.at(1).value_str.c_str() == "1";
+	return Napi::Boolean::New(info.Env(), false);
+}
+
 Napi::Value service::OBS_service_startRecording(const Napi::CallbackInfo& info)
 {
 	if (!isWorkerRunning) {
@@ -434,6 +450,9 @@ void service::Init(Napi::Env env, Napi::Object exports)
 	exports.Set(
 		Napi::String::New(env, "OBS_service_startStreaming"),
 		Napi::Function::New(env, service::OBS_service_startStreaming));
+	exports.Set(
+		Napi::String::New(env, "OBS_service_isRecording"),
+		Napi::Function::New(env, service::OBS_service_isRecording));
 	exports.Set(
 		Napi::String::New(env, "OBS_service_startRecording"),
 		Napi::Function::New(env, service::OBS_service_startRecording));

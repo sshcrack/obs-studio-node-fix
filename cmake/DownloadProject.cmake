@@ -151,7 +151,7 @@ function(download_project)
     # is safe to do so because it will be re-generated.  Since this is only
     # executed at the configure step, it should not cause additional builds or
     # downloads.
-    file(REMOVE "${DL_ARGS_DOWNLOAD_DIR}/CMakeCache.txt")
+    file(REMOVE "${DL_ARGS_DOWNLOAD_DIR<}/CMakeCache.txt")
 
     # Create and build a separate CMake project to carry out the download.
     # If we've already previously done these steps, they will not cause

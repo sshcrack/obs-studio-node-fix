@@ -52,6 +52,7 @@ namespace service
 
 	Napi::Value OBS_service_startStreaming(const Napi::CallbackInfo& info);
 	Napi::Value OBS_service_startRecording(const Napi::CallbackInfo& info);
+	Napi::Value OBS_service_isRecording(const Napi::CallbackInfo& info);
 	Napi::Value OBS_service_startReplayBuffer(const Napi::CallbackInfo& info);
 	Napi::Value OBS_service_stopStreaming(const Napi::CallbackInfo& info);
 	Napi::Value OBS_service_stopRecording(const Napi::CallbackInfo& info);

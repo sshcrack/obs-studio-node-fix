@@ -5,6 +5,7 @@ node_modules/
 distribute/
 yarn-error.log 
 test-results.xml
+obs-studio-node.tar.gz
 
 # Binaries
 *.dll

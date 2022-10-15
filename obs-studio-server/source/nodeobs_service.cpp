@@ -88,6 +88,8 @@ void OBS_service::Register(ipc::server& srv)
 	cls->register_function(std::make_shared<ipc::function>(
 	    "OBS_service_startRecording", std::vector<ipc::type>{}, OBS_service_startRecording));
 	cls->register_function(std::make_shared<ipc::function>(
+	    "OBS_service_isRecording", std::vector<ipc::type>{}, OBS_service_isRecording));
+	cls->register_function(std::make_shared<ipc::function>(
 	    "OBS_service_startReplayBuffer", std::vector<ipc::type>{}, OBS_service_startReplayBuffer));
 	cls->register_function(std::make_shared<ipc::function>(
 	    "OBS_service_stopStreaming", std::vector<ipc::type>{ipc::type::Int32}, OBS_service_stopStreaming));
@@ -164,6 +166,22 @@ void OBS_service::OBS_service_startStreaming(
 		rval.push_back(ipc::value((uint64_t)ErrorCode::Ok));
 	}
 
+	AUTO_DEBUG;
+}
+
+
+void OBS_service::OBS_service_isRecording(
+    void*                          data,
+    const int64_t                  id,
+    const std::vector<ipc::value>& args,
+    std::vector<ipc::value>&       rval)
+{
+	rval.push_back(ipc::value((uint64_t)ErrorCode::Ok));
+	if(isRecordingOutputActive()) {
+		rval.push_back(ipc::value("1"));
+	} else {
+		rval.push_back(ipc::value("0"));
+	}
 	AUTO_DEBUG;
 }
 
