@@ -21,4 +21,5 @@ docs/
 /*.log
 /streamlabs-build
 
+obs-studio-node
 tests/osn-tests/*-cache-local.zip

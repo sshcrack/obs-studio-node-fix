@@ -284,7 +284,7 @@ void osn::Input::SetVolume(void *data, const int64_t id, const std::vector<ipc::
 		PRETTY_ERROR_RETURN(ErrorCode::InvalidReference, "Input reference is not valid.");
 	}
 
-	obs_source_set_volume(input, (float_t)args[1].value_union.fp64);
+	obs_source_set_volume(input, (float_t)args[1].value_union.fp32);
 
 	rval.push_back(ipc::value((uint64_t)ErrorCode::Ok));
 	rval.push_back(ipc::value(obs_source_get_volume(input)));

@@ -1,6 +1,6 @@
 {
   "name": "@streamlabs/obs-studio-node",
-  "version": "0.3.99",
+  "version": "0.3.100",
   "description": "Experimental bindings to obs-studio using nan directly",
   "author": "Streamlabs <support@streamlabs.com>",
   "license": "GPL-2.0",
@@ -21,6 +21,7 @@
     "local:config": "yarn install && git submodule update --init --recursive --force && cmake -Bbuild -H. -G\"Visual Studio 16 2019\" -A\"x64\" -DCMAKE_INSTALL_PREFIX=\"./obs-studio-node\" -DLIBOBS_BUILD_TYPE=\"debug\" -DCMAKE_PREFIX_PATH=%CD%/build/libobs-src/cmake/",
     "local:build": "cmake --build build --target install --config Debug",
     "local:clean": "rm -rf build/*",
+    "local:package": "cd obs-studio-node && tar -czvf ../archive.tar.gz . && node -e \"require('fs').renameSync('../archive.tar.gz', 'archive.tar.gz')\"",
     "test": "electron-mocha -t 80000 -c true -r ts-node/register tests/osn-tests/src/**/*.ts --reporter tests/osn-tests/util/list-reporter.js"
   },
   "devDependencies": {

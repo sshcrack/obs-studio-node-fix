@@ -414,6 +414,21 @@ Napi::Value service::OBS_service_uninstallVirtualCamPlugin(const Napi::CallbackI
 	return info.Env().Undefined();
 }
 
+Napi::Value service::OBS_service_isRecording(const Napi::CallbackInfo& info)
+{
+	if (!isWorkerRunning) {
+		start_worker(info.Env(), cb.Value());
+		isWorkerRunning = true;
+	}
+
+	auto conn = GetConnection(info);
+	if (!conn)
+		return info.Env().Undefined();
+	std::vector<ipc::value> response = conn->call_synchronous_helper("NodeOBS_Service", "OBS_service_isRecording", {});
+	bool res_bool = response.at(1).value_str.c_str() == "1";
+	return Napi::Boolean::New(info.Env(), false);
+}
+
 Napi::Value service::OBS_service_isVirtualCamPluginInstalled(const Napi::CallbackInfo &info)
 {
 #ifdef WIN32
@@ -478,4 +493,6 @@ void service::Init(Napi::Env env, Napi::Object exports)
 	exports.Set(Napi::String::New(env, "OBS_service_uninstallVirtualCamPlugin"), Napi::Function::New(env, service::OBS_service_uninstallVirtualCamPlugin));
 	exports.Set(Napi::String::New(env, "OBS_service_isVirtualCamPluginInstalled"),
 		    Napi::Function::New(env, service::OBS_service_isVirtualCamPluginInstalled));
+
+	exports.Set(Napi::String::New(env, "OBS_service_isRecording"), Napi::Function::New(env, service::OBS_service_isRecording));
 }

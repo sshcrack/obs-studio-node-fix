@@ -103,7 +103,26 @@ void OBS_service::Register(ipc::server &srv)
 	cls->register_function(std::make_shared<ipc::function>("OBS_service_startVirtualWebcam", std::vector<ipc::type>{}, OBS_service_startVirtualWebcam));
 	cls->register_function(std::make_shared<ipc::function>("OBS_service_stopVirtualWebcan", std::vector<ipc::type>{}, OBS_service_stopVirtualWebcan));
 
+	cls->register_function(std::make_shared<ipc::function>(
+		"OBS_service_isRecording", std::vector<ipc::type>{}, OBS_service_isRecording));
+
+
 	srv.register_collection(cls);
+}
+
+void OBS_service::OBS_service_isRecording(
+    void*                          data,
+    const int64_t                  id,
+    const std::vector<ipc::value>& args,
+    std::vector<ipc::value>&       rval)
+{
+	rval.push_back(ipc::value((uint64_t)ErrorCode::Ok));
+	if(isRecordingOutputActive()) {
+		rval.push_back(ipc::value("1"));
+	} else {
+		rval.push_back(ipc::value("0"));
+	}
+	AUTO_DEBUG;
 }
 
 void OBS_service::OBS_service_resetAudioContext(void *data, const int64_t id, const std::vector<ipc::value> &args, std::vector<ipc::value> &rval)
