@@ -325,9 +325,21 @@ void OBS_content::OBS_content_destroyDisplay(void *data, const int64_t id, const
 	if (windowMessage != NULL && windowMessage->joinable())
 		windowMessage->join();
 
-	delete found->second;
-	displays.erase(found);
+	auto display = found -> second;
+    display ->m_gsInitData.cx = 0;
+	display ->m_gsInitData.cy = 0;
 
+    obs_display_resize(display ->m_display,
+		display ->m_gsInitData.cx,
+		display ->m_gsInitData.cy);
+
+	display -> UpdatePreviewArea();
+	display->SetSize(display->m_gsInitData.cx, display->m_gsInitData.cy);
+
+	obs_display_set_enabled(display -> m_display, false);
+	obs_display_destroy(display->m_display);
+
+	displays.erase(args[0].value_str);
 	rval.push_back(ipc::value((uint64_t)ErrorCode::Ok));
 	AUTO_DEBUG;
 }
