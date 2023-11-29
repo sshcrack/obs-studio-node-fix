@@ -13,7 +13,6 @@ describe(testName, function() {
     let obs: OBSHandler;
     let hasTestFailed: boolean = false;
     const path = require('path');
-
     before(async function() {
         logInfo(testName, 'Starting ' + testName + ' tests');
         deleteConfigFiles();

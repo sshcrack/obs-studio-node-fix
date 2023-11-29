@@ -13,25 +13,11 @@ const testName = 'osn-advanced-replay-buffer';
 describe(testName, () => {
     let obs: OBSHandler;
     let hasTestFailed: boolean = false;
-
     // Initialize OBS process
     before(async() => {
         logInfo(testName, 'Starting ' + testName + ' tests');
         deleteConfigFiles();
         obs = new OBSHandler(testName);
-        osn.VideoFactory.videoContext = {
-            fpsNum: 60,
-            fpsDen: 1,
-            baseWidth: 1920,
-            baseHeight: 1080,
-            outputWidth: 1280,
-            outputHeight: 720,
-            outputFormat: osn.EVideoFormat.NV12,
-            colorspace: osn.EColorSpace.CS709,
-            range: osn.ERangeType.Full,
-            scaleType: osn.EScaleType.Bilinear,
-            fpsType: osn.EFPSType.Fractional
-        };
 
         obs.instantiateUserPool(testName);
 
@@ -96,6 +82,7 @@ describe(testName, () => {
         replayBuffer.overwrite = true;
         replayBuffer.noSpace = false;
         replayBuffer.duration = 60;
+        replayBuffer.video = obs.defaultVideoContext;
         replayBuffer.prefix = 'Prefix';
         replayBuffer.suffix = 'Suffix';
         replayBuffer.usesStream = true;
@@ -123,12 +110,13 @@ describe(testName, () => {
         osn.AdvancedReplayBufferFactory.destroy(replayBuffer);
     });
 
-    it('Start replay buffer - Use Recording', async () => {
+    it('Start advanced replay buffer - Use Recording', async () => {
         const replayBuffer = osn.AdvancedReplayBufferFactory.create();
         replayBuffer.path = path.join(path.normalize(__dirname), '..', 'osnData');
         replayBuffer.format = osn.ERecordingFormat.MP4;
         replayBuffer.overwrite = false;
         replayBuffer.noSpace = false;
+        replayBuffer.video = obs.defaultVideoContext;
         replayBuffer.signalHandler = (signal) => {obs.signals.push(signal)};
         replayBuffer.duration = 60;
         replayBuffer.prefix = 'Prefix';
@@ -138,6 +126,7 @@ describe(testName, () => {
         recording.path = path.join(path.normalize(__dirname), '..', 'osnData');
         recording.format = osn.ERecordingFormat.MP4;
         recording.useStreamEncoders = false;
+        recording.video = obs.defaultVideoContext;
         recording.videoEncoder =
             osn.VideoEncoderFactory.create('obs_x264', 'video-encoder');
         const track1 = osn.AudioTrackFactory.create(160, 'track1');
@@ -251,12 +240,13 @@ describe(testName, () => {
         osn.AdvancedRecordingFactory.destroy(recording);
     });
 
-    it('Start replay buffer - Use Stream through Recording', async () => {
+    it('Start advanced replay buffer - Use Stream through Recording', async () => {
         const replayBuffer = osn.AdvancedReplayBufferFactory.create();
         replayBuffer.path = path.join(path.normalize(__dirname), '..', 'osnData');
         replayBuffer.format = osn.ERecordingFormat.MP4;
         replayBuffer.overwrite = false;
         replayBuffer.noSpace = false;
+        replayBuffer.video = obs.defaultVideoContext;
         replayBuffer.signalHandler = (signal) => {obs.signals.push(signal)};
         replayBuffer.duration = 60;
         replayBuffer.prefix = 'Prefix';
@@ -268,10 +258,12 @@ describe(testName, () => {
         recording.useStreamEncoders = true;
         recording.overwrite = false;
         recording.noSpace = false;
+        recording .video = obs.defaultVideoContext;
         recording.useStreamEncoders = true;
         recording.signalHandler = (signal) => {obs.signals.push(signal)};
 
         const stream = osn.AdvancedStreamingFactory.create();
+        stream.video = obs.defaultVideoContext;
         stream.videoEncoder =
             osn.VideoEncoderFactory.create('obs_x264', 'video-encoder');
         stream.service = osn.ServiceFactory.legacySettings;

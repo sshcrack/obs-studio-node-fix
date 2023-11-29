@@ -348,6 +348,8 @@ export interface IGlobal {
     getOutputFlagsFromId(id: string): number;
     setOutputSource(channel: number, input: ISource): void;
     getOutputSource(channel: number): ISource;
+    addSceneToBackstage(input: ISource) : void;
+    removeSceneFromBackstage(input: ISource): void;
     readonly totalFrames: number;
     readonly laggedFrames: number;
     readonly initialized: boolean;
@@ -548,6 +550,7 @@ export interface ISceneItem {
     visible: boolean;
     streamVisible: boolean;
     recordingVisible: boolean;
+    video: IVideo;
     readonly transformInfo: ITransformInfo;
     crop: ICropInfo;
     moveUp(): void;
@@ -631,6 +634,7 @@ export interface IDisplay {
     getPreviewSize(x: number, y: number): void;
     shouldDrawUI: boolean;
     paddingSize: number;
+    video: IVideo;
     setPaddingColor(r: number, g: number, b: number, a: number): void;
     setBackgroundColor(r: number, g: number, b: number, a: number): void;
     setOutlineColor(r: number, g: number, b: number, a: number): void;
@@ -638,7 +642,7 @@ export interface IDisplay {
     setResizeBoxOuterColor(r: number, g: number, b: number, a: number): void;
     setResizeBoxInnerColor(r: number, g: number, b: number, a: number): void;
 }
-export interface IVideo {
+export interface IVideoInfo {
     fpsNum: number;
     fpsDen: number;
     baseWidth: number;
@@ -651,11 +655,15 @@ export interface IVideo {
     scaleType: EScaleType;
     fpsType: EFPSType;
 }
-export interface IVideoFactory {
-    videoContext: IVideo;
-    legacySettings: IVideo;
+export interface IVideo {
+    video: IVideoInfo;
+    legacySettings: IVideoInfo;
+    destroy(): void;
     readonly skippedFrames: number;
     readonly encodedFrames: number;
+}
+export interface IVideoFactory {
+    create(): IVideo;
 }
 export interface IAudio {
     sampleRate: (44100 | 48000);
@@ -784,6 +792,7 @@ export interface IStreaming {
     delay: IDelay;
     reconnect: IReconnect;
     network: INetwork;
+    video: IVideo;
     signalHandler: (signal: EOutputSignal) => void;
     start(): void;
     stop(force?: boolean): void;
@@ -823,6 +832,7 @@ export interface IFileOutput {
     overwrite: boolean;
     noSpace: boolean;
     muxerSettings: string;
+    video: IVideo;
     lastFile(): string;
 }
 export interface IRecording extends IFileOutput {

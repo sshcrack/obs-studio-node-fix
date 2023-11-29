@@ -14,25 +14,11 @@ const testName = 'osn-simple-recording';
 describe(testName, () => {
     let obs: OBSHandler;
     let hasTestFailed: boolean = false;
-
     // Initialize OBS process
     before(async() => {
         logInfo(testName, 'Starting ' + testName + ' tests');
         deleteConfigFiles();
         obs = new OBSHandler(testName);
-        osn.VideoFactory.videoContext = {
-            fpsNum: 60,
-            fpsDen: 1,
-            baseWidth: 1920,
-            baseHeight: 1080,
-            outputWidth: 1280,
-            outputHeight: 720,
-            outputFormat: osn.EVideoFormat.NV12,
-            colorspace: osn.EColorSpace.CS709,
-            range: osn.ERangeType.Full,
-            scaleType: osn.EScaleType.Bilinear,
-            fpsType: osn.EFPSType.Fractional
-        };
 
         obs.instantiateUserPool(testName);
 
@@ -89,6 +75,7 @@ describe(testName, () => {
         recording.path = path.join(path.normalize(__dirname), '..', 'osnData');
         recording.format = ERecordingFormat.MOV;
         recording.quality = ERecordingQuality.HighQuality;
+        recording.video = obs.defaultVideoContext;
         recording.videoEncoder =
             osn.VideoEncoderFactory.create('obs_x264', 'video-encoder');
         recording.lowCPU = true;
@@ -112,7 +99,7 @@ describe(testName, () => {
         osn.SimpleRecordingFactory.destroy(recording);
     });
 
-    it('Start recording - Stream', async () => {
+    it('Start simple recording - Stream', async () => {
         const recording = osn.SimpleRecordingFactory.create();
         recording.path = path.join(path.normalize(__dirname), '..', 'osnData');
         recording.format = ERecordingFormat.MP4;
@@ -120,9 +107,11 @@ describe(testName, () => {
         recording.lowCPU = false;
         recording.overwrite = false;
         recording.noSpace = false;
+        recording.video = obs.defaultVideoContext;
         recording.signalHandler = (signal) => {obs.signals.push(signal)};
 
         const stream = osn.SimpleStreamingFactory.create();
+        stream.video = obs.defaultVideoContext;
         stream.videoEncoder =
             osn.VideoEncoderFactory.create('obs_x264', 'video-encoder');
         stream.service = osn.ServiceFactory.legacySettings;
@@ -240,11 +229,12 @@ describe(testName, () => {
         osn.SimpleStreamingFactory.destroy(stream);
     });
 
-    it('Start recording - HighQuality', async () => {
+    it('Start simple recording - HighQuality', async () => {
         const recording = osn.SimpleRecordingFactory.create();
         recording.path = path.join(path.normalize(__dirname), '..', 'osnData');
         recording.format = ERecordingFormat.MP4;
         recording.quality = ERecordingQuality.HighQuality;
+        recording.video = obs.defaultVideoContext;
         recording.videoEncoder =
             osn.VideoEncoderFactory.create('obs_x264', 'video-encoder');
         recording.lowCPU = false;
@@ -308,11 +298,12 @@ describe(testName, () => {
         osn.SimpleRecordingFactory.destroy(recording);
     });
 
-    it('Start recording - HigherQuality', async () => {
+    it('Start simple recording - HigherQuality', async () => {
         const recording = osn.SimpleRecordingFactory.create();
         recording.path = path.join(path.normalize(__dirname), '..', 'osnData');
         recording.format = ERecordingFormat.MP4;
         recording.quality = ERecordingQuality.HigherQuality;
+        recording.video = obs.defaultVideoContext;
         recording.videoEncoder =
             osn.VideoEncoderFactory.create('obs_x264', 'video-encoder');
         recording.lowCPU = false;
@@ -376,11 +367,12 @@ describe(testName, () => {
         osn.SimpleRecordingFactory.destroy(recording);
     });
 
-    it('Start recording - Lossless', async () => {
+    it('Start simple recording - Lossless', async () => {
         const recording = osn.SimpleRecordingFactory.create();
         recording.path = path.join(path.normalize(__dirname), '..', 'osnData');
         recording.format = ERecordingFormat.MP4;
         recording.quality = ERecordingQuality.Lossless;
+        recording.video = obs.defaultVideoContext;
         recording.lowCPU = false;
         recording.overwrite = false;
         recording.noSpace = false;

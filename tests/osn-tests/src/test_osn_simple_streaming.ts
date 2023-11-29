@@ -18,19 +18,6 @@ describe(testName, () => {
         logInfo(testName, 'Starting ' + testName + ' tests');
         deleteConfigFiles();
         obs = new OBSHandler(testName);
-        osn.VideoFactory.videoContext = {
-            fpsNum: 60,
-            fpsDen: 1,
-            baseWidth: 1920,
-            baseHeight: 1080,
-            outputWidth: 1280,
-            outputHeight: 720,
-            outputFormat: osn.EVideoFormat.NV12,
-            colorspace: osn.EColorSpace.CS709,
-            range: osn.ERangeType.Full,
-            scaleType: osn.EScaleType.Bilinear,
-            fpsType: osn.EFPSType.Fractional
-        };
 
         obs.instantiateUserPool(testName);
 
@@ -80,6 +67,7 @@ describe(testName, () => {
         stream.enableTwitchVOD = true;
         stream.useAdvanced = true;
         stream.customEncSettings = 'test';
+        stream.video = obs.defaultVideoContext;
 
         expect(stream.enforceServiceBitrate).to.equal(
             false, "Invalid enforceServiceBitrate value");
@@ -104,6 +92,7 @@ describe(testName, () => {
             osn.ReconnectFactory.create();
         stream.network =
             osn.NetworkFactory.create();
+        stream.video = obs.defaultVideoContext;
         stream.audioEncoder = osn.AudioEncoderFactory.create();
         stream.signalHandler = (signal) => {obs.signals.push(signal)};
 
@@ -178,6 +167,7 @@ describe(testName, () => {
             osn.ReconnectFactory.create();
         stream.network =
             osn.NetworkFactory.create();
+        stream.video = obs.defaultVideoContext;
         stream.audioEncoder = osn.AudioEncoderFactory.create();
         stream.signalHandler = (signal) => {obs.signals.push(signal)};
 

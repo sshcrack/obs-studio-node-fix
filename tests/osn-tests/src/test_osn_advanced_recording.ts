@@ -7,6 +7,7 @@ import { OBSHandler } from '../util/obs_handler'
 import { deleteConfigFiles, sleep } from '../util/general';
 import { EOBSInputTypes, EOBSOutputSignal, EOBSOutputType } from '../util/obs_enums';
 import { ERecordingFormat, ERecordingQuality } from '../osn';
+import { EFPSType } from '../osn';
 import path = require('path');
 
 const testName = 'osn-advanced-recording';
@@ -14,25 +15,11 @@ const testName = 'osn-advanced-recording';
 describe(testName, () => {
     let obs: OBSHandler;
     let hasTestFailed: boolean = false;
-
     // Initialize OBS process
     before(async() => {
         logInfo(testName, 'Starting ' + testName + ' tests');
         deleteConfigFiles();
         obs = new OBSHandler(testName);
-        osn.VideoFactory.videoContext = {
-            fpsNum: 60,
-            fpsDen: 1,
-            baseWidth: 1920,
-            baseHeight: 1080,
-            outputWidth: 1280,
-            outputHeight: 720,
-            outputFormat: osn.EVideoFormat.NV12,
-            colorspace: osn.EColorSpace.CS709,
-            range: osn.ERangeType.Full,
-            scaleType: osn.EScaleType.Bilinear,
-            fpsType: osn.EFPSType.Fractional
-        };
 
         obs.instantiateUserPool(testName);
 
@@ -98,6 +85,7 @@ describe(testName, () => {
             osn.VideoEncoderFactory.create('obs_x264', 'video-encoder');
         recording.overwrite = true;
         recording.noSpace = false;
+        recording.video = obs.defaultVideoContext;
         recording.mixer = 7;
         recording.rescaling = true;
         recording.outputWidth = 1920;
@@ -126,18 +114,20 @@ describe(testName, () => {
         osn.AdvancedRecordingFactory.destroy(recording);
     });
 
-    it('Start recording - Stream', async () => {
+    it('Start advanced recording - Stream', async () => {
         const recording = osn.AdvancedRecordingFactory.create();
         recording.path = path.join(path.normalize(__dirname), '..', 'osnData');
         recording.format = ERecordingFormat.MP4;
         recording.overwrite = false;
         recording.noSpace = false;
+        recording.video = obs.defaultVideoContext;
         recording.signalHandler = (signal) => {obs.signals.push(signal)};
         recording.useStreamEncoders = true;
         const stream = osn.AdvancedStreamingFactory.create();
         stream.videoEncoder =
             osn.VideoEncoderFactory.create('obs_x264', 'video-encoder');
         stream.service = osn.ServiceFactory.legacySettings;
+        stream.video = obs.defaultVideoContext;
         stream.signalHandler = (signal) => {obs.signals.push(signal)};
         const track1 = osn.AudioTrackFactory.create(160, 'track1');
         osn.AudioTrackFactory.setAtIndex(track1, 1);
@@ -254,7 +244,7 @@ describe(testName, () => {
         osn.AdvancedStreamingFactory.destroy(stream);
     });
 
-    it('Start recording - Custom encoders', async () => {
+    it('Start advanced recording - Custom encoders', async () => {
         const recording = osn.AdvancedRecordingFactory.create();
         recording.path = path.join(path.normalize(__dirname), '..', 'osnData');
         recording.format = ERecordingFormat.MP4;
@@ -263,6 +253,7 @@ describe(testName, () => {
             osn.VideoEncoderFactory.create('obs_x264', 'video-encoder');
         recording.overwrite = false;
         recording.noSpace = false;
+        recording.video = obs.defaultVideoContext;
         const track1 = osn.AudioTrackFactory.create(160, 'track1');
         osn.AudioTrackFactory.setAtIndex(track1, 1);
         recording.signalHandler = (signal) => {obs.signals.push(signal)};

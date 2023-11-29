@@ -6,32 +6,18 @@ import { ETestErrorMsg, GetErrorMessage } from '../util/error_messages';
 import { OBSHandler } from '../util/obs_handler'
 import { deleteConfigFiles, sleep } from '../util/general';
 import { EOBSInputTypes, EOBSOutputSignal, EOBSOutputType } from '../util/obs_enums';
+import { EFPSType } from '../osn';
 
 const testName = 'osn-advanced-streaming';
 
 describe(testName, () => {
     let obs: OBSHandler;
     let hasTestFailed: boolean = false;
-
     // Initialize OBS process
     before(async() => {
         logInfo(testName, 'Starting ' + testName + ' tests');
         deleteConfigFiles();
         obs = new OBSHandler(testName);
-        osn.VideoFactory.videoContext = {
-            fpsNum: 60,
-            fpsDen: 1,
-            baseWidth: 1920,
-            baseHeight: 1080,
-            outputWidth: 1280,
-            outputHeight: 720,
-            outputFormat: osn.EVideoFormat.NV12,
-            colorspace: osn.EColorSpace.CS709,
-            range: osn.ERangeType.Full,
-            scaleType: osn.EScaleType.Bilinear,
-            fpsType: osn.EFPSType.Fractional
-        };
-
         obs.instantiateUserPool(testName);
 
         // Reserving user from pool
@@ -90,6 +76,7 @@ describe(testName, () => {
         stream.rescaling = true;
         stream.outputWidth = 1920;
         stream.outputHeight = 1080;
+        stream.video = obs.defaultVideoContext;
 
         expect(stream.enforceServiceBitrate).to.equal(
             false, "Invalid enforceServiceBitrate value");
@@ -120,6 +107,7 @@ describe(testName, () => {
             osn.ReconnectFactory.create();
         stream.network =
             osn.NetworkFactory.create();
+        stream.video = obs.defaultVideoContext;
         const track1 = osn.AudioTrackFactory.create(160, 'track1');
         osn.AudioTrackFactory.setAtIndex(track1, 1);
 
@@ -196,6 +184,7 @@ describe(testName, () => {
             osn.ReconnectFactory.create();
         stream.network =
             osn.NetworkFactory.create();
+        stream.video = obs.defaultVideoContext;
         const track1 = osn.AudioTrackFactory.create(160, 'track1');
         osn.AudioTrackFactory.setAtIndex(track1, 1);
         stream.signalHandler = (signal) => {obs.signals.push(signal)};
@@ -215,7 +204,7 @@ describe(testName, () => {
             EOBSOutputType.Streaming, GetErrorMessage(ETestErrorMsg.StreamOutput));
         expect(signalInfo.signal).to.equal(
             EOBSOutputSignal.Stop, GetErrorMessage(ETestErrorMsg.StreamOutput));
-        expect(signalInfo.code).to.equal(-3, GetErrorMessage(ETestErrorMsg.StreamOutput));
+        expect(signalInfo.code).to.equal(-3, GetErrorMessage(ETestErrorMsg.StreamOutput));                                                                     
 
         stream.service.update({ key: obs.userStreamKey });
 

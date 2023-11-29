@@ -103,7 +103,7 @@ enum crashHandlerCommand { REGISTER = 0, UNREGISTER = 1, REGISTERMEMORYDUMP = 2,
 
 struct NodeOBSLogParam final {
 	std::fstream logStream;
-	bool enableDebugLogs = false;
+	bool enableDebugLogs = true;
 };
 
 std::string g_moduleDirectory = "";
@@ -115,7 +115,8 @@ HMODULE hRtwq;
 std::string slobs_plugin;
 std::vector<std::pair<std::string, obs_module_t *>> obsModules;
 OBS_API::LogReport logReport;
-OBS_API::OutputStats streamingOutputStats;
+OBS_API::OutputStats streamingOutputStatsMain;
+OBS_API::OutputStats streamingOutputStatsSecondary;
 OBS_API::OutputStats recordingOutputStats;
 std::mutex logMutex;
 std::string currentVersion;
@@ -146,6 +147,7 @@ void OBS_API::Register(ipc::server &srv)
 	cls->register_function(std::make_shared<ipc::function>("OBS_API_ProcessHotkeyStatus", std::vector<ipc::type>{ipc::type::UInt64, ipc::type::Int32},
 							       ProcessHotkeyStatus));
 	cls->register_function(std::make_shared<ipc::function>("SetUsername", std::vector<ipc::type>{ipc::type::String}, SetUsername));
+	cls->register_function(std::make_shared<ipc::function>("OBS_API_forceCrash", std::vector<ipc::type>{}, OBS_API_forceCrash));
 	cls->register_function(std::make_shared<ipc::function>("SetBrowserAcceleration", std::vector<ipc::type>{ipc::type::UInt32}, SetBrowserAcceleration));
 	cls->register_function(std::make_shared<ipc::function>("GetBrowserAcceleration", std::vector<ipc::type>{}, GetBrowserAcceleration));
 	cls->register_function(std::make_shared<ipc::function>("GetBrowserAccelerationLegacy", std::vector<ipc::type>{}, GetBrowserAccelerationLegacy));
@@ -345,6 +347,7 @@ static void DeleteOldestFile(const char *location, unsigned maxLogs)
 #else
 #include <unistd.h>
 #endif
+#include <osn-error.hpp>
 
 outdated_driver_error *outdated_driver_error::inst = nullptr;
 
@@ -919,18 +922,6 @@ void OBS_API::OBS_API_initAPI(void *data, const int64_t id, const std::vector<ip
 	obs_apply_private_data(private_settings);
 	obs_data_release(private_settings);
 
-	int videoError = OBS_service::resetVideoContext(false, true);
-	if (videoError != OBS_VIDEO_SUCCESS) {
-#ifdef WIN32
-		util::CrashManager::GetMetricsProvider()->BlameUser();
-
-		rval.push_back(ipc::value((uint64_t)ErrorCode::Error));
-		rval.push_back(ipc::value(videoError));
-		AUTO_DEBUG;
-		return;
-#endif
-	}
-
 	addModulePaths();
 	struct obs_module_failure_info mfi;
 	obs_load_all_modules2(&mfi);
@@ -943,16 +934,18 @@ void OBS_API::OBS_API_initAPI(void *data, const int64_t id, const std::vector<ip
 		}
 	}
 
-	OBS_service::createService();
-	OBS_service::createStreamingOutput();
+	OBS_service::createService(StreamServiceId::Main);
+	OBS_service::createService(StreamServiceId::Second);
+	OBS_service::createStreamingOutput(StreamServiceId::Main);
+	OBS_service::createStreamingOutput(StreamServiceId::Second);
 	OBS_service::createRecordingOutput();
 	OBS_service::createReplayBufferOutput();
 
-	OBS_service::createVideoStreamingEncoder();
+	OBS_service::createVideoStreamingEncoder(StreamServiceId::Main);
+	OBS_service::createVideoStreamingEncoder(StreamServiceId::Second);
 	OBS_service::createVideoRecordingEncoder();
 
 	OBS_service::resetAudioContext();
-	OBS_service::resetVideoContext();
 
 	OBS_service::setupAudioEncoder();
 
@@ -967,8 +960,6 @@ void OBS_API::OBS_API_initAPI(void *data, const int64_t id, const std::vector<ip
 
 	if (currentOutputMode)
 		simple = strcmp(currentOutputMode, "Simple") == 0;
-
-	enum obs_replay_buffer_rendering_mode mode = OBS_STREAMING_REPLAY_BUFFER_RENDERING;
 
 	bool useStreamOutput = config_get_bool(ConfigManager::getInstance().getBasic(), simple ? "SimpleOutput" : "AdvOut", "replayBufferUseStreamOutput");
 
@@ -1006,9 +997,9 @@ void OBS_API::OBS_API_getPerformanceStatistics(void *data, const int64_t id, con
 	rval.push_back(ipc::value(getNumberOfDroppedFrames()));
 	rval.push_back(ipc::value(getDroppedFramesPercentage()));
 
-	getCurrentOutputStats(OBS_service::getStreamingOutput(), streamingOutputStats);
-	rval.push_back(ipc::value(streamingOutputStats.kbitsPerSec));
-	rval.push_back(ipc::value(streamingOutputStats.dataOutput));
+	getCurrentOutputStats(OBS_service::getStreamingOutput(StreamServiceId::Main), streamingOutputStatsMain);
+	rval.push_back(ipc::value(streamingOutputStatsMain.kbitsPerSec));
+	rval.push_back(ipc::value(streamingOutputStatsMain.dataOutput));
 
 	getCurrentOutputStats(OBS_service::getRecordingOutput(), recordingOutputStats);
 	rval.push_back(ipc::value(recordingOutputStats.kbitsPerSec));
@@ -1018,6 +1009,10 @@ void OBS_API::OBS_API_getPerformanceStatistics(void *data, const int64_t id, con
 	rval.push_back(ipc::value(getAverageTimeToRenderFrame()));
 	rval.push_back(ipc::value(getMemoryUsage()));
 	rval.push_back(ipc::value(getDiskSpaceAvailable()));
+
+	getCurrentOutputStats(OBS_service::getStreamingOutput(StreamServiceId::Second), streamingOutputStatsSecondary);
+	rval.push_back(ipc::value(streamingOutputStatsSecondary.kbitsPerSec));
+	rval.push_back(ipc::value(streamingOutputStatsSecondary.dataOutput));
 	AUTO_DEBUG;
 }
 
@@ -1459,6 +1454,16 @@ void OBS_API::WaitCrashHandlerClose(bool waitBeforeClosing)
 	}
 }
 
+void debug_enum_sources(std::string inside)
+{
+	auto PreEnum = [](void *data, obs_source_t *source) -> bool {
+		blog(LOG_INFO, "[ENUM] obs_enum_%s %s %p , removed %d", (char *)data, obs_source_get_name(source), source, obs_source_removed(source) ? 1 : 0);
+		return true;
+	};
+	obs_enum_sources(PreEnum, (void *)(std::string("sources ") + inside).c_str());
+	obs_enum_scenes(PreEnum, (void *)(std::string("scenes ") + inside).c_str());
+}
+
 void OBS_API::StopCrashHandler(void *data, const int64_t id, const std::vector<ipc::value> &args, std::vector<ipc::value> &rval)
 {
 	util::CrashManager::setAppState("shutdown");
@@ -1485,6 +1490,28 @@ void OBS_API::StopCrashHandler(void *data, const int64_t id, const std::vector<i
 	rval.push_back(ipc::value((uint64_t)ErrorCode::Ok));
 	AUTO_DEBUG;
 }
+struct release_sources {
+	std::mutex mtx;
+	int num_sources = 0;
+	std::chrono::steady_clock::time_point start_time;
+
+	void static signal_handler(void *param, calldata_t *data)
+	{
+		struct release_sources *sources = (struct release_sources *)param;
+		std::lock_guard<std::mutex> lock(sources->mtx);
+		sources->num_sources--;
+	}
+
+	void add_to_delete(obs_source_t *source)
+	{
+		if (obs_source_get_type(source) != OBS_SOURCE_TYPE_SCENE) {
+			signal_handler_connect(obs_source_get_signal_handler(source), "destroy", signal_handler, this);
+
+			std::lock_guard<std::mutex> lock(mtx);
+			num_sources++;
+		}
+	}
+};
 
 void OBS_API::InformCrashHandler(const int crash_id)
 {
@@ -1494,7 +1521,7 @@ void OBS_API::InformCrashHandler(const int crash_id)
 void OBS_API::destroyOBS_API(void)
 {
 	blog(LOG_DEBUG, "OBS_API::destroyOBS_API started, objects allocated %d", bnum_allocs());
-
+	debug_enum_sources(" on destroyOBS_API");
 	os_cpu_usage_info_destroy(cpuUsageInfo);
 
 #ifdef _WIN32
@@ -1512,7 +1539,17 @@ void OBS_API::destroyOBS_API(void)
 	OBS_service::stopAllOutputs();
 	OBS_service::waitReleaseWorker();
 
-	obs_encoder_t *streamingEncoder = OBS_service::getStreamingEncoder();
+	for (int i = 0; i < MAX_CHANNELS; i++)
+		obs_set_output_source(i, nullptr);
+
+	obs_encoder_t *streamingEncoder;
+	streamingEncoder = OBS_service::getStreamingEncoder(StreamServiceId::Main);
+	if (streamingEncoder != NULL) {
+		obs_encoder_release(streamingEncoder);
+		streamingEncoder = nullptr;
+	}
+
+	streamingEncoder = OBS_service::getStreamingEncoder(StreamServiceId::Second);
 	if (streamingEncoder != NULL) {
 		obs_encoder_release(streamingEncoder);
 		streamingEncoder = nullptr;
@@ -1542,7 +1579,14 @@ void OBS_API::destroyOBS_API(void)
 		archiveEncoder = nullptr;
 	}
 
-	obs_output_t *streamingOutput = OBS_service::getStreamingOutput();
+	obs_output_t *streamingOutput;
+	streamingOutput = OBS_service::getStreamingOutput(StreamServiceId::Main);
+	if (streamingOutput != NULL) {
+		obs_output_release(streamingOutput);
+		streamingEncoder = nullptr;
+	}
+
+	streamingOutput = OBS_service::getStreamingOutput(StreamServiceId::Second);
 	if (streamingOutput != NULL) {
 		obs_output_release(streamingOutput);
 		streamingEncoder = nullptr;
@@ -1569,7 +1613,14 @@ void OBS_API::destroyOBS_API(void)
 		virtualWebcamOutput = nullptr;
 	}
 
-	obs_service_t *service = OBS_service::getService();
+	obs_service_t *service;
+	service = OBS_service::getService(StreamServiceId::Main);
+	if (service != NULL) {
+		obs_service_release(service);
+		service = nullptr;
+	}
+
+	service = OBS_service::getService(StreamServiceId::Second);
 	if (service != NULL) {
 		obs_service_release(service);
 		service = nullptr;
@@ -1646,6 +1697,11 @@ void OBS_API::destroyOBS_API(void)
 			delete fileOutput;
 	});
 
+	obs_wait_for_destroy_queue();
+	// obs_set_output_source might cause destruction of some sources.
+	// Wait for the destruction thread to destroy the sources to be sure
+	// |for_each| below will only return actual remaining sources.
+
 	// Check if the frontend was able to shutdown correctly:
 	// If there are some sources here it's because it ended unexpectedly, this represents a
 	// problem since obs doesn't handle releasing leaked sources very well. The best we can
@@ -1654,19 +1710,25 @@ void OBS_API::destroyOBS_API(void)
 	    osn::SceneItem::Manager::GetInstance().size() > 0 || osn::Transition::Manager::GetInstance().size() > 0 ||
 	    osn::Filter::Manager::GetInstance().size() > 0 || osn::Input::Manager::GetInstance().size() > 0) {
 
-		for (int i = 0; i < MAX_CHANNELS; i++)
-			obs_set_output_source(i, nullptr);
-
-		// obs_set_output_source might cause destruction of some sources.
-		// Wait for the destruction thread to destroy the sources to be sure
-		// |for_each| below will only return actual remaining sources.
-		obs_wait_for_destroy_queue();
+		release_sources releasing_counter;
 
 		std::vector<obs_source_t *> sources;
-		osn::Source::Manager::GetInstance().for_each([&sources](obs_source_t *source) {
-			if (source)
-				sources.push_back(source);
+		osn::Source::Manager::GetInstance().for_each([&sources, &releasing_counter](obs_source_t *source) {
+			blog(LOG_INFO, "OBS_API::destroyOBS_API before source %p destroy %s", source, obs_source_get_name(source));
+			if (source) {
+				if (!obs_source_removed(source)) {
+					sources.push_back(source);
+				} else {
+					blog(LOG_INFO, "OBS_API::destroyOBS_API source %s is in removed state", obs_source_get_name(source));
+					releasing_counter.add_to_delete(source);
+				}
+			} else {
+				blog(LOG_ERROR, "OBS_API::destroyOBS_API source in memory manager is null");
+			}
 		});
+
+		if (sources.size() > 0 || releasing_counter.num_sources > 0)
+			blog(LOG_INFO, "OBS_API::destroyOBS_API sources to destroy %d, to wait %d", sources.size(), releasing_counter.num_sources);
 
 		for (const auto &source : sources) {
 			if (!source)
@@ -1680,8 +1742,8 @@ void OBS_API::destroyOBS_API(void)
 				std::list<obs_sceneitem_t *> items;
 				auto cb = [](obs_scene_t *scene, obs_sceneitem_t *item, void *data) {
 					if (item) {
-						obs_sceneitem_release(item);
 						obs_sceneitem_remove(item);
+						obs_sceneitem_release(item);
 					}
 					return true;
 				};
@@ -1702,6 +1764,8 @@ void OBS_API::destroyOBS_API(void)
 		// Release all remaining sources that are not transitions
 		for (int i = 0; i < sources.size(); i++) {
 			if (sources[i] && obs_source_get_type(sources[i]) != OBS_SOURCE_TYPE_TRANSITION) {
+				releasing_counter.add_to_delete(sources[i]);
+
 				obs_source_release(sources[i]);
 				sources[i] = nullptr;
 			}
@@ -1717,7 +1781,10 @@ void OBS_API::destroyOBS_API(void)
 		// Remove the 'destruction' callback. Otherwise, it will try to
 		// access data released by |obs_shutdown| which leads to crashes.
 		obs_wait_for_destroy_queue();
+		blog(LOG_WARNING, "OBS_API::destroyOBS_API - obs_wait_for_destroy_queue has finished, osn::Source::Manager::GetInstance() size is %d",
+		     osn::Source::Manager::GetInstance().size());
 		osn::Source::Manager::GetInstance().for_each([&sources](obs_source_t *source) { osn::Source::detach_source_signals(source); });
+		MemoryManager::GetInstance().shutdownAllSources();
 
 #ifdef WIN32
 		// Directly blame the frontend since it didn't release all objects and that could cause
@@ -1728,6 +1795,26 @@ void OBS_API::destroyOBS_API(void)
 
 		util::CrashManager::DisableReports();
 #endif
+
+		releasing_counter.start_time = std::chrono::steady_clock::now();
+		while (true) {
+			{
+				std::lock_guard<std::mutex> lock(releasing_counter.mtx);
+				if (releasing_counter.num_sources <= 0)
+					break;
+			}
+
+			if (std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - releasing_counter.start_time).count() > 10) {
+				blog(LOG_WARNING, "OBS_API::destroyOBS_API timeout waiting for sources to be released. %d sources remaining",
+				     releasing_counter.num_sources);
+				break;
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+
+		debug_enum_sources(" on shutdown");
+
 		blog(LOG_DEBUG, "OBS_API::destroyOBS_API unreleased objects detected before obs_shutdown, objects allocated %d", bnum_allocs());
 		// Try-catch should suppress any error message that could be thrown to the user
 		try {
@@ -1803,7 +1890,7 @@ double OBS_API::getCPU_Percentage(void)
 
 int OBS_API::getNumberOfDroppedFrames(void)
 {
-	obs_output_t *streamOutput = OBS_service::getStreamingOutput();
+	obs_output_t *streamOutput = OBS_service::getStreamingOutput(StreamServiceId::Main);
 
 	int totalDropped = 0;
 
@@ -1816,7 +1903,7 @@ int OBS_API::getNumberOfDroppedFrames(void)
 
 double OBS_API::getDroppedFramesPercentage(void)
 {
-	obs_output_t *streamOutput = OBS_service::getStreamingOutput();
+	obs_output_t *streamOutput = OBS_service::getStreamingOutput(StreamServiceId::Main);
 
 	double percent = 0;
 
